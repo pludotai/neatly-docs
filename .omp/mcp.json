@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "mcpServers": {
+    "mintlify": {
+      "type": "http",
+      "url": "https://mcp.mintlify.com",
+      "auth": {
+        "type": "oauth",
+        "credentialId": "mcp_oauth:profile:default:https://mcp.mintlify.com",
+        "tokenUrl": "https://mcp.mintlify.com/oauth/token",
+        "resource": "https://mcp.mintlify.com",
+        "clientId": "connected-app-live-ef5b8476-9f23-4cc6-9f8b-3e8e1af36df1"
+      }
+    }
+  }
+}

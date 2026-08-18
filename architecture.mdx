@@ -7,18 +7,66 @@ description: "How the web application, email service, Skyvern, PostgreSQL, and o
 
 ```mermaid placement="top-right" theme={null}
   flowchart LR
-    operator["Operations user"] --> web["Web application"]
-    web --> db[("PostgreSQL")]
-    web --> skyvern["Skyvern API"]
-    web --> files["S3 storage"]
-    web --> timer["Nitro timer"]
-    timer --> db
-    timer --> skyvern
-    mailbox["OTP mailbox"] --> email["Email service"]
-    email --> microsoftGraph["Microsoft Graph"]
-    email --> skyvern
-    web --> otp["Web OTP ingress"]
-    otp --> skyvern
+    operator(["Operations user"])
+
+    subgraph deployables["neatly.ai - separate deployables"]
+      direction TB
+
+      subgraph web["Web application"]
+        direction LR
+        ui["React + TanStack Start"]
+        engine["Workflow engine"]
+        scheduler["Nitro sweep<br/>every minute"]
+        otpIngress["Web OTP ingress<br/>/api/otp"]
+        artifacts["Artifact handling<br/>presigned downloads"]
+        ui --> engine
+        scheduler --> engine
+        engine --> artifacts
+      end
+
+      subgraph email["Email service"]
+        direction LR
+        mailApi["Mail API<br/>POST /send"]
+        totpApi["TOTP API<br/>POST /totp"]
+        watcher["Optional mailbox watcher"]
+      end
+    end
+
+    subgraph dependencies["Data and external services"]
+      direction TB
+      db[("PostgreSQL")]
+      storage[("S3-compatible storage")]
+      skyvern["Skyvern API"]
+      microsoftGraph["Microsoft Graph<br/>mail + sendMail APIs"]
+      mailbox[("OTP mailbox")]
+    end
+
+    operator -->|HTTPS| ui
+    engine -->|data| db
+    scheduler -->|claims| db
+    engine -->|workflows| skyvern
+    skyvern -->|artifacts| artifacts
+    artifacts -->|objects| storage
+    otpIngress -->|/api/otp| skyvern
+
+    mailApi -->|sendMail| microsoftGraph
+    totpApi -->|/totp| skyvern
+    watcher -->|polls| microsoftGraph
+    mailbox -->|messages| microsoftGraph
+    watcher -->|TOTP identifiers| db
+    watcher -->|matching OTP| skyvern
+
+    classDef person fill:#FEF3C7,stroke:#B45309,stroke-width:2px,color:#78350F
+    classDef webNode fill:#DCFCE7,stroke:#15803D,stroke-width:2px,color:#14532D
+    classDef emailNode fill:#FCE7F3,stroke:#BE185D,stroke-width:2px,color:#831843
+    classDef dataNode fill:#EDE9FE,stroke:#7C3AED,stroke-width:2px,color:#4C1D95
+    classDef externalNode fill:#DBEAFE,stroke:#2563EB,stroke-width:2px,color:#1E3A8A
+
+    class operator person
+    class ui,engine,scheduler,otpIngress,artifacts webNode
+    class mailApi,totpApi,watcher emailNode
+    class db,storage,mailbox dataNode
+    class skyvern,microsoftGraph externalNode
 ```
 
 The web application and email service are separate deployables. The web repository currently sends OTP content directly to Skyvern through its authenticated `/api/otp` ingress. The email service provides a separate authenticated `/totp` endpoint and an optional mailbox watcher for Microsoft Graph. Deployments must choose and configure the path that receives production OTP mail; the repositories do not contain an automatic web-to-email-service connection.
