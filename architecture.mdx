@@ -7,14 +7,14 @@ description: "How the web application, email service, Skyvern, PostgreSQL, and o
 
 ```mermaid
 flowchart LR
-  operator[Operations user] --> web[Web application\nTanStack Start + Nitro]
+  operator[Operations user] --> web[Web application]
   web --> db[(PostgreSQL)]
   web --> skyvern[Skyvern API]
-  web --> files[S3-compatible storage]
-  web --> timer[Nitro scheduled task\nevery minute]
+  web --> files[S3 storage]
+  web --> timer[Nitro timer]
   timer --> db
   timer --> skyvern
-  mailbox[OTP mailbox\nMicrosoft Graph] --> email[Email service\nGo HTTP API + watcher]
+  mailbox[OTP mailbox] --> email[Email service]
   email --> graph[Microsoft Graph]
   email --> skyvern
   web --> otp[Web OTP ingress]
