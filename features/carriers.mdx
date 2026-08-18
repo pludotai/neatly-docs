@@ -1,0 +1,42 @@
+---
+title: "Carriers"
+description: "Configure carrier workflows, parameters, browser profiles, and proxy behavior"
+---
+
+A carrier is a named workflow configuration. It links carrier operations to one or more Skyvern workflows and defines how appointments progress between them.
+
+## Access
+
+Only users with the `super_admin` role can create, edit, refresh, or delete carriers. Authenticated users can read carriers while creating appointments.
+
+## Configure a carrier
+
+When you add or edit a carrier, the app:
+
+1. Validates the step list locally.
+2. Fetches the first workflow from Skyvern to read its title, version, and declared parameters.
+3. Stores those values with the carrier.
+4. Stores the ordered carrier steps.
+
+Carrier names are unique. Step names are unique within a carrier. Workflow IDs must be non-empty.
+
+## Workflow metadata refresh
+
+Refresh reads the first step's workflow from Skyvern and updates the carrier title, version, and parameter definitions. Use refresh after changing a workflow's declared inputs. Existing appointments keep their own step snapshot; refresh does not rewrite appointments already in progress.
+
+## Browser profiles and proxy locations
+
+The carrier record can store a Skyvern browser profile ID and a proxy location. New runs receive these values. After a successful run, the web app attempts to create a browser profile from the workflow run and attach it to the carrier. If a previous profile exists, it is deleted after the replacement is available.
+
+The default proxy location in the database is `RESIDENTIAL_ISP`. Confirm the location supported by the Skyvern account before relying on it in production.
+
+## Carrier workflow research
+
+The repository includes research for portal, email, e-signature, training, and termination variations. Examples include Safeco, Progressive, National General, Appalachian Underwriters, and Cabrillo. The research shows why one linear workflow is insufficient:
+
+- Safeco combines email, e-signature, and portal work.
+- Progressive requires human code decisions, optional training, agent forms, and manual status checks.
+- National General depends on agent completion after internal setup.
+- Some carriers confirm by email; others require portal polling or manual review.
+
+Represent these differences with explicit actions, checks, human inputs, and escalation paths. Do not encode carrier assumptions in the generic appointment engine.

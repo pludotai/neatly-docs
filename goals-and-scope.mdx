@@ -1,0 +1,44 @@
+---
+title: "Goals and scope"
+description: "Product goals, non-goals, and the current roadmap boundary"
+---
+
+## Goals
+
+neatly.ai is designed to:
+
+1. Give operations teams one place to launch and monitor carrier appointment work.
+2. Represent carrier differences as configurable Skyvern workflow steps instead of hard-coded portal logic.
+3. Preserve human decisions where carrier policy or agency context requires judgment.
+4. Make long-running work observable through statuses, attempts, browser sessions, and downloaded artifacts.
+5. Reuse credentials, email bodies, and uploaded files across appointments without exposing raw secrets in the appointment form.
+6. Support carrier checks that wait, retry, branch, and escalate instead of treating every workflow as a single fire-and-forget run.
+
+## Non-goals
+
+The current system does not aim to:
+
+- Replace carrier portals, carrier approval decisions, or carrier-specific policy.
+- Infer master-code, subcode, tax-ID, state, LOB, or existing-agent decisions without explicit workflow inputs or human review.
+- Guarantee carrier confirmation when a portal or carrier mailbox does not expose a reliable signal.
+- Act as a general-purpose CRM, ticketing system, or document-management system.
+- Store arbitrary files as a standalone shared drive. Files are tied to Skyvern runs and appointments.
+- Provide a general email inbox. The email service sends mail and forwards matching OTP messages; it does not manage threads, replies, or human correspondence.
+- Treat OTP forwarding as proof that a workflow is safe to continue. Skyvern and the carrier remain responsible for authentication and authorization.
+
+## Planned direction
+
+The carrier workflow research identifies these next areas:
+
+- Expand carrier-specific appointment and termination workflows.
+- Add structured follow-up timers for unsigned forms, pending carrier responses, and agent actions.
+- Add portal status polling where a carrier exposes a stable status signal.
+- Track human decisions and approval evidence separately from automation completion.
+- Improve workflow observability with clearer failure reasons, run history, and operational alerts.
+- Standardize outbound email execution around reusable templates and the email service boundary.
+
+These are candidate capabilities derived from the workflow artifacts in the web repository. The current implementation already provides configurable steps, daily checks, templates, credentials, OTP delivery, and files, but it does not yet implement every carrier-specific opportunity described in those artifacts.
+
+## Human-in-the-loop boundary
+
+Some carrier flows require a decision before automation starts. Examples from the workflow research include master code versus subcode selection, code selection for an existing agent, removal from a previous agency, and state or tax-ID mapping. Model these decisions as explicit inputs or approval steps. Do not hide them inside a generic retry loop.

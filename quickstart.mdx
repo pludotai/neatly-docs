@@ -1,47 +1,71 @@
 ---
 title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+description: "Run the web application locally and connect its required services"
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+This quickstart starts the web application with PostgreSQL. Skyvern, S3-compatible storage, and OTP delivery are optional for the UI boot, but required for the corresponding runtime features.
 
 ## Prerequisites
 
-Before you begin, you must have:
+- Bun compatible with the repository toolchain
+- Docker and Docker Compose
+- PostgreSQL, supplied by the repository's Compose file
+- A Skyvern API key for workflow execution
+- A session secret for signed cookies
+- S3-compatible credentials if workflows download files
 
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
+## Start PostgreSQL
 
-## Get started
+From the `web` repository:
 
-<Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+```bash
+docker compose up -d db
+```
 
-    ```bash
-    npm install your-package
-    ```
-  </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+The included Compose file exposes PostgreSQL on `localhost:5432` with the development database `carrier_portal`. Change those development defaults before sharing the environment.
 
-    ```bash
-    your-cli init
-    ```
-  </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+## Install and configure
 
-    ```bash
-    your-cli start
-    ```
-  </Step>
-</Steps>
+```bash
+bun install
+cp .env.example .env
+```
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+Set `DATABASE_URL`, `SKYVERN_API_KEY`, and `SESSION_SECRET`. Add the S3 variables described in [Configuration](/operations/configuration) when file downloads are needed.
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+Apply the schema and seed local users:
+
+```bash
+bun run db:migrate
+bun run db:seed
+```
+
+The seed script creates development users. Replace the sample credentials before using a shared or production database.
+
+## Run the web app
+
+```bash
+bun run dev
+```
+
+Open `http://localhost:3000`. Sign in, create a carrier as a super admin, attach one or more Skyvern workflow IDs, and create an appointment from the Appointments page.
+
+## Run the email service
+
+The email service is independent. From `email-service`:
+
+```bash
+go run ./cmd/server
+```
+
+Or run the included container setup:
+
+```bash
+docker compose up --build
+```
+
+Set its Microsoft Graph, API authentication, Skyvern, and optional OTP watcher variables before starting it. See [Email service](/services/email-service) and [Configuration](/operations/configuration).
+
+<Warning>
+  Do not copy seeded passwords, API keys, OAuth client secrets, database URLs, or OTP state files into source control. The sample seed values are development-only.
+</Warning>

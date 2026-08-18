@@ -1,0 +1,60 @@
+---
+title: "OTP"
+description: "Deliver email verification messages to Skyvern TOTP inboxes"
+---
+
+OTP support connects a carrier's email verification message to a Skyvern workflow waiting for a TOTP code. It has two supported ingress patterns in the repositories.
+
+## Web OTP ingress
+
+The web Nitro server exposes `POST /api/otp`. It:
+
+1. Requires the `x-otp-secret` header to match `OTP_PUSH_SECRET` using a timing-safe comparison.
+2. Requires `totp_identifier` and `content` in the JSON body.
+3. Accepts optional `source` and `workflow_run_id` fields.
+4. Calls Skyvern's credential TOTP API.
+
+Example request shape:
+
+```http
+POST /api/otp
+x-otp-secret: <configured-secret>
+content-type: application/json
+
+{
+  "totp_identifier": "carrier-mailbox@example.com",
+  "content": "Your verification code is 483920.",
+  "source": "email",
+  "workflow_run_id": "<skyvern-run-id>"
+}
+```
+
+The web ingress returns `{ "ok": true }` on success. It returns `503` when the secret is not configured, `401` for an invalid secret, and `400` for missing required fields.
+
+## Email-service watcher
+
+The Go email service can watch a dedicated Microsoft Graph mailbox when `OTP_GRAPH_MAILBOX` is configured. Every poll it:
+
+1. Lists up to 50 messages newer than its cursor.
+2. Reads TOTP identifiers from the `credentials` table.
+3. Matches the sender address case-insensitively to a registered identifier.
+4. Forwards matching message bodies to Skyvern with `source: email`.
+5. Marks successful messages and unknown senders as handled.
+6. Saves the time cursor and handled message IDs atomically through a temporary file rename.
+
+The default poll interval is 10 seconds and default forwarding concurrency is four. The watcher retains at most 10,000 message IDs in its state file. A failed forward is not marked handled, so a later poll can retry it.
+
+## Email-service endpoint
+
+The email service also exposes `POST /totp`, authenticated with the same Bearer API key as `/send`. Its request uses `totp_identifier` and `content`; optional Skyvern context fields are accepted. It forwards the request to Skyvern's `/v1/credentials/totp` endpoint.
+
+<Note>
+  Choose one mailbox-to-Skyvern route for a deployment. The web ingress is a push endpoint for a trusted caller. The email-service watcher is a pull-based Microsoft Graph integration with durable deduplication state.
+</Note>
+
+## Safety boundaries
+
+- OTP secrets are configuration, not appointment parameters.
+- Matchers should use an exact registered sender-to-identifier mapping; unknown senders are ignored.
+- Keep the OTP mailbox and Graph application permissions dedicated to this purpose.
+- Monitor forwarding failures and state-file persistence; a successful HTTP response only proves that Skyvern accepted the message.

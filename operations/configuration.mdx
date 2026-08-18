@@ -1,0 +1,57 @@
+---
+title: "Configuration"
+description: "Environment variables and deployment contracts for both services"
+---
+
+## Web application
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | Yes | PostgreSQL connection used by Drizzle |
+| `SKYVERN_API_KEY` | For runs | Skyvern API authentication |
+| `SESSION_SECRET` | Yes for sessions | Signs the HTTP-only session cookie |
+| `S3_BUCKET` | For files | Object storage bucket |
+| `S3_REGION` | For files | S3 region; example default is `us-east-1` |
+| `S3_ACCESS_KEY_ID` | For files | Object storage access key |
+| `S3_SECRET_ACCESS_KEY` | For files | Object storage secret |
+| `S3_PREFIX` | No | Optional run-object prefix |
+| `OTP_PUSH_SECRET` | For web OTP | Shared secret for `POST /api/otp` |
+
+Start local PostgreSQL with the web repository's Compose file. Nitro enables the WebSocket server and schedules `sweep` every minute.
+
+## Email service
+
+### Required for the mail API
+
+| Variable | Purpose |
+| --- | --- |
+| `SEND_GRAPH_TENANT_ID` | Microsoft Entra tenant for client-credentials auth |
+| `SEND_GRAPH_CLIENT_ID` | Sending application client ID |
+| `SEND_GRAPH_CLIENT_SECRET` | Sending application secret |
+| `SEND_GRAPH_MAILBOX` | User principal name used by Graph `sendMail` |
+| `SEND_API_KEY` | Bearer token required by `/send` and `/totp` |
+| `PORT` | HTTP listen address; defaults to `:8080` |
+| `SKYVERN_API_KEY` | Skyvern API key used by `/totp` and the watcher |
+| `SKYVERN_API_URL` | Optional Skyvern base URL; defaults to `https://api.skyvern.com` |
+
+### Optional OTP watcher
+
+Set `OTP_GRAPH_MAILBOX` to enable the mailbox watcher. When enabled, all of these are required:
+
+| Variable | Purpose |
+| --- | --- |
+| `OTP_GRAPH_TENANT_ID` | Microsoft Entra tenant for the OTP mailbox |
+| `OTP_GRAPH_CLIENT_ID` | OTP reader application client ID |
+| `OTP_GRAPH_CLIENT_SECRET` | OTP reader application secret |
+| `OTP_DATABASE_URL` | PostgreSQL URL used to read registered TOTP identifiers |
+| `OTP_POLL_INTERVAL` | Go duration; defaults to `10s` |
+| `OTP_FORWARD_CONCURRENCY` | Positive worker limit; defaults to `4` |
+| `OTP_STATE_FILE` | Cursor and deduplication state path; optional but recommended |
+
+## Deployment notes
+
+- Give the sender Graph application only the permissions required to send as the configured mailbox.
+- Give the OTP Graph application only the permissions required to read the dedicated OTP mailbox.
+- Mount `OTP_STATE_FILE` on durable storage. The included Compose file mounts `/state` as `otp-state`.
+- Keep the web and email-service API secrets distinct. The web OTP ingress uses `x-otp-secret`; the email service uses `Authorization: Bearer`.
+- Keep S3 and database credentials out of browser-delivered code and logs.

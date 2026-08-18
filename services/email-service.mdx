@@ -1,0 +1,82 @@
+---
+title: "Email service"
+description: "Go service for Microsoft Graph email delivery and Skyvern OTP forwarding"
+---
+
+The email service is a small Go HTTP service that centralizes outbound Microsoft Graph email and optional OTP mailbox forwarding. It listens on `:8080` by default and supports graceful shutdown on `SIGINT` or `SIGTERM`.
+
+## Endpoints
+
+Every endpoint requires an `Authorization: Bearer <SEND_API_KEY>` header. Authentication uses a constant-time comparison.
+
+### `POST /send`
+
+Request:
+
+```json
+{
+  "subject": "Appointment update",
+  "body": "Your appointment request was submitted.",
+  "contentType": "Text",
+  "to": ["agent@example.com"],
+  "cc": ["ops@example.com"],
+  "attachments": [
+    {
+      "url": "https://storage.example.com/form.pdf",
+      "name": "appointment-form.pdf",
+      "contentType": "application/pdf"
+    }
+  ]
+}
+```
+
+`attachments` also accepts a string URL or an array of URL strings for compatibility. The service fetches each URL server-side, infers a filename and content type when omitted, and embeds the bytes as Microsoft Graph file attachments.
+
+Validation and response behavior:
+
+- `200` with `{ "status": "accepted" }` after Graph returns `202 Accepted`.
+- `400` for malformed JSON, unknown JSON fields, missing recipients, missing subject/body, or an invalid content type.
+- `413` when fetched attachments exceed 3 MiB in total.
+- `502` when an attachment cannot be fetched or Graph rejects the send.
+- Request bodies are capped at 8 MiB; individual attachment reads are bounded.
+
+The sender saves a copy to Sent Items. Supported content types are `Text` and `HTML`; an empty content type defaults to `Text`.
+
+### `POST /totp`
+
+Request:
+
+```json
+{
+  "totp_identifier": "carrier-mailbox@example.com",
+  "content": "Your verification code is 483920.",
+  "source": "email",
+  "workflow_run_id": "<skyvern-run-id>",
+  "workflow_id": "<optional-workflow-id>",
+  "task_id": "<optional-task-id>"
+}
+```
+
+The service validates the required identifier and content, then forwards the request to Skyvern `POST /v1/credentials/totp` with `x-api-key`. It returns Skyvern's JSON body on success and `502` on forwarding failure.
+
+## Mailbox watcher
+
+When enabled, the watcher uses Microsoft Graph to list the latest 50 messages from the configured OTP mailbox, filtered after its `since` cursor. It reads sender, body, recipients, subject, and received time. It refreshes the set of TOTP identifiers from PostgreSQL and forwards only messages whose sender matches a registered identifier.
+
+Forwarding is bounded by `OTP_FORWARD_CONCURRENCY`. Successful and unknown-sender messages are marked handled. Failed forwards remain eligible for retry. The state file contains a timestamp and handled message IDs, is written with mode `0600`, and is replaced with a temporary-file rename.
+
+## Package layout
+
+| Package | Responsibility |
+| --- | --- |
+| `cmd/server` | Loads configuration, wires dependencies, starts HTTP server and optional watcher |
+| `internal/server` | Authentication, `/send`, `/totp`, request validation, attachment fetching |
+| `internal/mail` | Microsoft Graph OAuth token caching and `sendMail` payloads |
+| `internal/mailbox` | Microsoft Graph message reads, polling, filtering, deduplication |
+| `internal/credentials` | Reads non-empty `totp_identifier` values from PostgreSQL |
+| `internal/skyvern` | Calls Skyvern's TOTP endpoint |
+| `internal/config` | Loads `.env` and environment variables with validation |
+
+<Note>
+  This service is not an SMTP relay, inbox UI, or general email processor. It has no persistence for sent messages and no outbound retry queue beyond the OTP watcher's retry-on-next-poll behavior.
+</Note>

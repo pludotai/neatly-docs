@@ -1,0 +1,33 @@
+---
+title: "Email"
+description: "Use carrier-scoped email templates and workflow email inputs"
+---
+
+The web app provides reusable email bodies for carrier workflows. Templates are stored in PostgreSQL and associated with one carrier.
+
+## Email templates
+
+Authenticated users can create, edit, list, and delete templates. Each template has:
+
+- A name
+- A carrier
+- An email body
+
+The appointment form loads templates for the selected carrier. A workflow parameter named `email_body` or ending in `_email_body` gets a template selector plus an editable body. The selected template supplies the initial body; operators can adjust it for the appointment.
+
+Templates are input helpers, not a mail transport. The web application does not send the template itself from the template page.
+
+## Workflow email parameters
+
+Email-related workflow inputs can be declared as ordinary strings. The UI recognizes body parameters by key and attachment parameters by `file_url` type or attachment wording in the key or description. The final appointment payload contains the value selected or entered by the operator.
+
+If a workflow must send an email, the Skyvern workflow or an external integration must perform the send. The standalone [email service](/services/email-service) provides authenticated Microsoft Graph sending when the deployment chooses to route outbound mail through it.
+
+## Email service boundary
+
+The email service accepts:
+
+- `POST /send` for a subject, body, recipients, optional CC, content type, and URL-based attachments.
+- `POST /totp` for forwarding OTP content to Skyvern.
+
+The web repository currently contains no caller that connects its template CRUD directly to `/send`. Treat that connection as an integration task, not an implicit behavior of template storage.

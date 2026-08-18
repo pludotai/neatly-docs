@@ -1,0 +1,43 @@
+---
+title: "Files"
+description: "Upload appointment inputs and retrieve Skyvern run downloads"
+---
+
+Files have two paths: input uploads before a run and downloaded artifacts after a run.
+
+## Upload inputs
+
+A workflow parameter is treated as an attachment when its type is `file_url`, or when its key or description contains `attach`. In the appointment form:
+
+1. The operator chooses one or more local files.
+2. The web app uploads each file to Skyvern.
+3. Skyvern returns a presigned URL.
+4. The appointment payload contains the presigned URLs under the workflow parameter key.
+
+The appointment is not submitted if an upload fails.
+
+## Downloaded artifacts
+
+After a Skyvern run completes, the appointment engine asks Skyvern for download artifacts and copies them to S3-compatible storage. Objects use a run-scoped prefix, optionally nested under `S3_PREFIX`. Filenames are sanitized before storage.
+
+The Files dialog collects run IDs from the appointment and all appointment timers, merges their objects, removes duplicate keys, and sorts by most recent modification time. Each object gets a presigned GET URL that expires after 15 minutes.
+
+The dialog polls every 10 seconds while it is open. It reports distinct states for a missing run, a loading request, no artifacts yet, a storage configuration gap, and a request error.
+
+## Configuration
+
+Set these variables on the web application:
+
+```dotenv
+S3_BUCKET=...
+S3_REGION=us-east-1
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_PREFIX=appointments
+```
+
+If any required S3 value is missing, the feature reports storage as not configured. The UI can still display appointment runs without file access.
+
+<Warning>
+  Presigned URLs grant temporary object access. Keep their lifetime short, avoid logging them, and apply least-privilege permissions to the S3 credentials.
+</Warning>

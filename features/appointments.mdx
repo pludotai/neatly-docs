@@ -1,0 +1,66 @@
+---
+title: "Appointments"
+description: "Create, schedule, run, monitor, and retrigger carrier appointments"
+---
+
+An appointment is a carrier-specific automation run with a snapshot of the carrier's workflow steps. Users create appointments from the UI; the scheduler executes their steps asynchronously.
+
+## Create an appointment
+
+1. Choose a carrier.
+2. The app loads the carrier's Skyvern-declared parameters.
+3. Fill text, number, boolean, JSON, credential, email-body, and file inputs.
+4. Upload attachment inputs. The app sends each file to Skyvern and submits the returned presigned URL.
+5. Submit the appointment.
+
+The server validates that the carrier exists, stores the submitted JSON parameters, copies the carrier steps into appointment-specific rows, activates the first step, and schedules its timer. The appointment then moves from `created` to `in_progress`.
+
+## Workflow steps
+
+A carrier step contains:
+
+| Field | Meaning |
+| --- | --- |
+| Name | Human-readable step label; unique within the carrier |
+| Workflow ID | Skyvern workflow to run |
+| Type | `action` for one-shot work or `check` for repeated evaluation |
+| Frequency | `once` or `daily` |
+| Frequency days | Maximum check attempts for a daily check |
+| Start delay | Days before the first attempt |
+| Success target | Later step to activate when a check succeeds |
+| Exhausted target | Later step to activate when a check reaches its attempt limit |
+
+Checks must be daily, have at least one attempt, and point to two distinct later steps. Action steps ignore check-only branching fields.
+
+## Scheduler and run lifecycle
+
+Nitro schedules `sweep` every minute. Each sweep claims up to 25 pending timers and processes them. A worker:
+
+1. Loads the active appointment step and appointment.
+2. Fetches current workflow metadata from Skyvern.
+3. Filters appointment parameters to the workflow's declared keys.
+4. Adds `attempt` and `appointment_id` when the workflow declares those keys.
+5. Starts Skyvern with the carrier browser profile and proxy location when configured.
+6. Stores the Skyvern run ID and browser session information.
+7. Polls for a terminal Skyvern status.
+8. Applies success, retry, exhausted, or error behavior.
+
+A Skyvern run is considered terminal at `completed`, `failed`, `terminated`, `timed_out`, or `canceled`.
+
+## Outcomes
+
+- A completed action advances to the next step.
+- A completed check follows its success target, or the next step when no target exists.
+- A terminated check below its configured attempt limit schedules another attempt one day later.
+- An exhausted check follows its exhausted target, or escalates the appointment when no target exists.
+- A non-completed action or unexpected check result is an error.
+- Timer-processing failures are retried twice after 10 minutes. After the final retry, the step and appointment are escalated.
+- A user can retrigger an appointment. Retriggering rebuilds its appointment steps, clears its run reference, and restarts the workflow.
+
+## Statuses
+
+The UI displays `created`, `in_progress`, `completed`, and `escalated` appointment states. Skyvern run states are stored separately and exposed with the run IDs.
+
+<Note>
+  Completion means the configured workflow reached its success path. It does not independently prove that a carrier approved the appointment unless the workflow performs that verification.
+</Note>

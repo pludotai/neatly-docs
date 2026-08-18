@@ -1,0 +1,58 @@
+---
+title: "Skyvern setup"
+description: "Prepare Skyvern workflows, credentials, browser profiles, and API access"
+---
+
+Skyvern is the execution layer. neatly.ai stores workflow references and operational state; Skyvern owns browser automation, workflow versions, credentials, browser sessions, and TOTP inboxes.
+
+## Prepare workflows
+
+For each carrier:
+
+1. Create and test a Skyvern workflow for one discrete action or check.
+2. Record its workflow ID.
+3. Declare every input the workflow consumes.
+4. Use stable parameter keys. The web form recognizes `credential_id`, `file_url`, `email_body`, and common username companions.
+5. Add the workflow as a carrier step in the order and branch structure required by the carrier.
+
+The web app refreshes the first step's title, version, and parameter declarations. It filters submitted parameters to the declarations returned by Skyvern, then adds `attempt` and `appointment_id` only when declared.
+
+## Configure the web app
+
+```dotenv
+SKYVERN_API_KEY=<web-api-key>
+```
+
+The web client uses the Skyvern SDK for workflow reads, workflow runs, run polling, artifact metadata, credentials, browser profiles, browser sessions, file uploads, and TOTP delivery.
+
+A run receives these optional carrier settings when present:
+
+- `browser_profile_id`
+- `proxy_location`
+
+The web app also captures a browser profile from a successful carrier run and saves its ID for later runs. Profile creation may be delayed after completion; the capture path retries Skyvern persistence errors.
+
+## Configure credentials
+
+Create portal credentials from the web app so Skyvern receives the password secret. When email TOTP is enabled, Skyvern receives:
+
+```json
+{
+  "totp_type": "email",
+  "totp_identifier": "registered-sender@example.com"
+}
+```
+
+The identifier must match the OTP route used by the deployment.
+
+## Browser peek
+
+The Appointments page can open a live peek for an appointment with a stored browser address. The WebSocket verifies the session cookie, loads the appointment browser address, and bridges browser protocol traffic through Skyvern. It does not create a new run.
+
+## Failure handling
+
+The appointment engine polls at a bounded interval and treats `completed`, `failed`, `terminated`, `timed_out`, and `canceled` as terminal. A successful run copies download artifacts. Non-success outcomes are interpreted by the step type; timer infrastructure failures have a separate two-retry policy.
+
+<Warning>
+  Workflow IDs, API keys, credential IDs, browser profile IDs, browser addresses, and run IDs are operationally sensitive. Restrict access and do not paste them into public issue reports or documentation.
+</Warning>

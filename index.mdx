@@ -1,20 +1,39 @@
 ---
-title: "Introduction"
-description: "Welcome to your project"
+title: "neatly.ai"
+description: "Carrier appointment automation for insurance operations teams"
 ---
 
-Write a short description of your product here. What it does, who it's for, and what they can accomplish with it.
+neatly.ai helps insurance operations teams run carrier appointment workflows through a single operational workspace. It combines carrier-specific Skyvern workflows, reusable credentials and email content, scheduled follow-ups, OTP delivery, and run artifacts.
 
-<Tip>
-  Ready to make this your own? Start by editing this page. Update your `docs.json` file to customize your site. Then fill out the [Quickstart](/quickstart) page.
-</Tip>
+The product has two services:
 
-<Card title="Quickstart" icon="rocket" href="/quickstart">
-  This card links to the quickstart page in your project.
-</Card>
-<Card title="Components" icon="puzzle-piece" href="https://mintlify.com/docs/components">
-  Add cards, callouts, steps, tabs, and more to design and structure your pages.
-</Card>
-<Card title="Settings" icon="gear" href="https://mintlify.com/docs/organize/settings">
-  Set your site name, branding, and navigation in the `docs.json` file.
-</Card>
+- **Web application** — authenticated workspace for configuring carriers, creating appointments, supplying workflow inputs, and reviewing run status and files.
+- **Email service** — Go service for sending Microsoft Graph mail and forwarding verification emails to Skyvern.
+
+<Note>
+  The repository contains an active implementation plus workflow research for future carrier coverage. Pages marked as planned describe the current direction, not a committed release date.
+</Note>
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="diagram-project" href="/architecture">
+    Trace requests from the workspace through PostgreSQL, Skyvern, timers, and object storage.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Run the web application with PostgreSQL and configure its integrations.
+  </Card>
+  <Card title="Appointments" icon="calendar-check" href="/features/appointments">
+    Understand the carrier workflow engine, checks, retries, and escalations.
+  </Card>
+  <Card title="Skyvern setup" icon="browser" href="/operations/skyvern">
+    Configure workflows, credentials, browser profiles, proxies, and API access.
+  </Card>
+</CardGroup>
+
+## Feature areas
+
+- [Carriers](/features/carriers) define ordered Skyvern workflows and branching checks.
+- [Credentials](/features/credentials) store the local reference to a Skyvern password credential and optional email TOTP identifier.
+- [Email templates](/features/email) provide carrier-scoped body content for workflow inputs.
+- [Files](/features/files) move Skyvern downloads into S3-compatible storage and expose short-lived downloads.
+- [OTP](/features/otp) connects verification mail to Skyvern's TOTP inbox.
+- [Email service](/services/email-service) exposes authenticated mail and TOTP forwarding endpoints.
